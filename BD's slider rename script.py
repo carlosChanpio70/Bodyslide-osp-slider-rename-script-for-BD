@@ -2,16 +2,57 @@ import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
-# Path to BodySlide's SliderSets folder
+# Paths
 SLIDERSETS_PATH = r"Data\CalienteTools\BodySlide\SliderSets"
-
-# Reference 3BA .osp
 REFERENCE_3BA_OSP = r"Data\CalienteTools\BodySlide\SliderSets\3BBB Amazing.osp"
 
 # Words to ignore when generating prefixes
-IGNORE_WORDS = {"BD", "3BA", "DLC1", "DLC2"}
+IGNORE_WORDS = {
+    # BodySlide tags
+    "BD",
+    "3BA",
+    "CBBE",
+    "BHUNP",
+    "UNP",
+    "UUNP",
+    "DLC1",
+    "DLC2",
 
-# Load standard 3BA sliders
+    # Generic words
+    "ARMOR",
+    "ARMOUR",
+    "OUTFIT",
+    "ROBES",
+    "ROBE",
+    "CLOTHES",
+    "CLOTHING",
+    "BODY",
+    "SET",
+
+    # Equipment pieces
+    "BOOTS",
+    "SHOES",
+    "HELMET",
+    "HOOD",
+    "MASK",
+    "GAUNTLETS",
+    "GLOVES",
+    "BRACERS",
+    "BELT",
+    "PANTS",
+    "SKIRT",
+    "TOP",
+    "DRESS",
+
+    # Descriptors
+    "LIGHT",
+    "HEAVY"
+}
+
+# ---------------------------------------------------------------------
+# Load standard 3BA slider names
+# ---------------------------------------------------------------------
+
 tree = ET.parse(REFERENCE_3BA_OSP)
 root = tree.getroot()
 
@@ -21,7 +62,10 @@ standard_sliders = {
     if slider.get("name")
 }
 
-# Collect all .osp files except the reference
+# ---------------------------------------------------------------------
+# Find all OSP files
+# ---------------------------------------------------------------------
+
 osp_files = []
 
 for root_dir, _, files in os.walk(SLIDERSETS_PATH):
@@ -32,7 +76,9 @@ for root_dir, _, files in os.walk(SLIDERSETS_PATH):
             if os.path.abspath(full_path) != os.path.abspath(REFERENCE_3BA_OSP):
                 osp_files.append(full_path)
 
-# ---------- PASS 1: Collect all SliderSet names ----------
+# ---------------------------------------------------------------------
+# PASS 1: Collect SliderSet names
+# ---------------------------------------------------------------------
 
 sliderset_names = set()
 
@@ -50,28 +96,41 @@ for osp in osp_files:
                 sliderset_names.add(name)
 
     except Exception as e:
-        print(f"Failed reading {osp}: {e}")
+        print(f"Error reading {osp}: {e}")
 
-# ---------- Generate deterministic prefixes ----------
+# ---------------------------------------------------------------------
+# Generate deterministic prefixes
+# ---------------------------------------------------------------------
 
 prefix_counts = defaultdict(int)
 sliderset_prefixes = {}
 
 for sliderset_name in sorted(sliderset_names):
 
-    words = [
-        word
-        for word in sliderset_name.split()
-        if word.upper() not in IGNORE_WORDS
-    ]
+    words = []
+
+    for word in sliderset_name.split():
+
+        cleaned = word.upper()
+
+        # Ignore numbers
+        if cleaned.isdigit():
+            continue
+
+        # Ignore common words
+        if cleaned in IGNORE_WORDS:
+            continue
+
+        words.append(word)
 
     if not words:
         continue
 
-    base_prefix = "BD" + "".join(
-        word[0].upper()
-        for word in words
-    )
+    # Single-word names: Dragonbone -> D
+    # Multi-word names: Dark Brotherhood -> DB
+    initials = "".join(word[0].upper() for word in words)
+
+    base_prefix = "BD" + initials
 
     prefix_counts[base_prefix] += 1
 
@@ -82,7 +141,9 @@ for sliderset_name in sorted(sliderset_names):
 
     sliderset_prefixes[sliderset_name] = prefix
 
-# ---------- PASS 2: Rename sliders ----------
+# ---------------------------------------------------------------------
+# PASS 2: Rename sliders
+# ---------------------------------------------------------------------
 
 for osp in osp_files:
 
@@ -113,7 +174,7 @@ for osp in osp_files:
             if name in standard_sliders:
                 continue
 
-            # Skip already renamed sliders
+            # Skip already processed sliders
             if name.startswith("BD"):
                 continue
 
@@ -122,11 +183,7 @@ for osp in osp_files:
             if duplicate_counts[name] == 1:
                 new_name = prefix + name
             else:
-                new_name = (
-                    prefix
-                    + str(duplicate_counts[name])
-                    + name
-                )
+                new_name = f"{prefix}{duplicate_counts[name]}{name}"
 
             slider.set("name", new_name)
 

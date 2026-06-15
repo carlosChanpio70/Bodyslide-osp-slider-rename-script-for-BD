@@ -1,4 +1,3 @@
-```python
 import os
 import xml.etree.ElementTree as ET
 from collections import defaultdict
@@ -142,4 +141,3 @@ for osp in osp_files:
         tree.write(osp, encoding="utf-8", xml_declaration=True)
 
 print("Done.")
-```

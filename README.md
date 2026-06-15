@@ -1,0 +1,1 @@
+# Bodyslide-osp-slider-rename-script
